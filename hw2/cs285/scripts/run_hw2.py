@@ -15,6 +15,8 @@ from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
 from cs285.infrastructure.action_noise_wrapper import ActionNoiseWrapper
 
+import matplotlib.pyplot as plt
+
 MAX_NVIDEO = 2
 
 
@@ -65,12 +67,14 @@ def run_training_loop(args):
 
     total_envsteps = 0
     start_time = time.time()
-
+    
+    train_env_steps = []
+    rewards = []
     for itr in range(args.n_iter):
         print(f"\n********** Iteration {itr} ************")
         # TODO: sample `args.batch_size` transitions using utils.sample_trajectories
         # make sure to use `max_ep_len`
-        trajs, envsteps_this_batch = None, None  # TODO
+        trajs, envsteps_this_batch = utils.sample_trajectories(env, agent.actor, args.batch_size, max_length=max_ep_len)
         total_envsteps += envsteps_this_batch
 
         # trajs should be a list of dictionaries of NumPy arrays, where each dictionary corresponds to a trajectory.
@@ -78,8 +82,9 @@ def run_training_loop(args):
         trajs_dict = {k: [traj[k] for traj in trajs] for k in trajs[0]}
 
         # TODO: train the agent using the sampled trajectories and the agent's update function
-        train_info: dict = None
-
+        train_info: dict = agent.update(trajs_dict["observation"], trajs_dict['action'], trajs_dict['reward'], trajs_dict['terminal'])
+        
+        
         if itr % args.scalar_log_freq == 0:
             # save eval metrics
             print("\nCollecting data for eval...")
@@ -104,6 +109,10 @@ def run_training_loop(args):
             print("Done logging...\n\n")
 
             logger.flush()
+            
+            train_env_steps.append(total_envsteps)
+            rewards.append(logs["Eval_AverageReturn"])
+
 
         if args.video_log_freq != -1 and itr % args.video_log_freq == 0:
             print("\nCollecting video rollouts...")
@@ -118,7 +127,8 @@ def run_training_loop(args):
                 max_videos_to_save=MAX_NVIDEO,
                 video_title="eval_rollouts",
             )
-
+    plt.plot(train_env_steps, rewards)
+    plt.savefig(f"{args.exp_name}_iters_{args.n_iter}_batch_{args.batch_size}")
 
 def main():
     import argparse

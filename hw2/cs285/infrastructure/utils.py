@@ -30,14 +30,15 @@ def sample_trajectory(
             )
 
         # TODO use the most recent ob and the policy to decide what to do
-        ac: np.ndarray = None
+        #hmm would this be any less efficient because we are using cpu/numpy?? instead of torch
+        ac: np.ndarray = policy.get_action(ob)
 
         # TODO: use that action to take a step in the environment
-        next_ob, rew, done, _ = None, None, None, None
+        next_ob, rew, done, _ = env.step(ac[0])
 
         # TODO rollout can end due to done, or due to max_length
         steps += 1
-        rollout_done: bool = None
+        rollout_done: bool = done or len(obs) == max_length
 
         # record result of taking that action
         obs.append(ob)
@@ -56,7 +57,7 @@ def sample_trajectory(
         "observation": np.array(obs, dtype=np.float32),
         "image_obs": np.array(image_obs, dtype=np.uint8),
         "reward": np.array(rewards, dtype=np.float32),
-        "action": np.array(acs, dtype=np.float32),
+        "action": np.array(acs, dtype=np.int64),
         "next_observation": np.array(next_obs, dtype=np.float32),
         "terminal": np.array(terminals, dtype=np.float32),
     }

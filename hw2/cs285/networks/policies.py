@@ -59,10 +59,12 @@ class MLPPolicy(nn.Module):
     def get_action(self, obs: np.ndarray) -> np.ndarray:
         """Takes a single observation (as a numpy array) and returns a single action (as a numpy array)."""
         # TODO: implement get_action
-        action = None
-
+        act_probs = self.forward(torch.tensor(obs).to(ptu.device))
+        
+        action_probs = F.softmax(act_probs)
+        #sample from act probs
+        action = torch.multinomial(action_probs, 1).numpy()
         return action
-
     def forward(self, obs: torch.FloatTensor):
         """
         This function defines the forward pass of the network.  You can return anything you want, but you should be
@@ -71,11 +73,13 @@ class MLPPolicy(nn.Module):
         """
         if self.discrete:
             # TODO: define the forward pass for a policy with a discrete action space.
-            pass
+            act_probs = self.logits_net(obs)
         else:
             # TODO: define the forward pass for a policy with a continuous action space.
-            pass
-        return None
+            mean = self.mean_net(obs)
+            std = self.logstd(obs)
+            act_probs = mean + std * torch.randn(std.size())
+        return act_probs
 
     def update(self, obs: np.ndarray, actions: np.ndarray, *args, **kwargs) -> dict:
         """Performs one iteration of gradient descent on the provided batch of data."""
@@ -97,7 +101,17 @@ class MLPPolicyPG(MLPPolicy):
         advantages = ptu.from_numpy(advantages)
 
         # TODO: implement the policy gradient actor update.
-        loss = None
+        #get act probs
+        
+        probs = self.forward(obs)
+        
+        act_log_probs = F.cross_entropy(probs, actions.to(torch.long), reduction = "none")
+
+        #trying to maximize this value; cross entropy already computes negative value; so we shouldn't minimize
+        loss = (act_log_probs * advantages).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
         return {
             "Actor Loss": ptu.to_numpy(loss),
