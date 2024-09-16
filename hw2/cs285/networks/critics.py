@@ -42,9 +42,15 @@ class ValueCritic(nn.Module):
     def update(self, obs: np.ndarray, q_values: np.ndarray) -> dict:
         obs = ptu.from_numpy(obs)
         q_values = ptu.from_numpy(q_values)
+        
+        #should we update critic on normalized q_values??
 
         # TODO: update the critic using the observations and q_values
-        loss = None
+        self.optimizer.zero_grad()
+        preds = self.forward(obs)
+        loss = ((preds - q_values) **2).mean()
+        loss.backward()
+        self.optimizer.step()
 
         return {
             "Baseline Loss": ptu.to_numpy(loss),

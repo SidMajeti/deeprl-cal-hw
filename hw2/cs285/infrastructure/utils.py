@@ -31,10 +31,22 @@ def sample_trajectory(
 
         # TODO use the most recent ob and the policy to decide what to do
         #hmm would this be any less efficient because we are using cpu/numpy?? instead of torch
-        ac: np.ndarray = policy.get_action(ob)
+        ac: np.ndarray = policy.get_action(np.array(ob, dtype=np.float32))
+        
+        discrete = isinstance(env.action_space, gym.spaces.Discrete)
 
+        if discrete:
+            ac = ac[0]
+        
+        if isinstance(env.action_space, gym.spaces.Box):
+            low = env.action_space.low
+            high =  env.action_space.high
+            #
+            # ac = np.clip(ac, low, high)
+            
+                
         # TODO: use that action to take a step in the environment
-        next_ob, rew, done, _ = env.step(ac[0])
+        next_ob, rew, done, _ = env.step(ac)
 
         # TODO rollout can end due to done, or due to max_length
         steps += 1

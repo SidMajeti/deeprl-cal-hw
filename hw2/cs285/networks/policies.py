@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from torch import distributions
 
+import math
 from cs285.infrastructure import pytorch_util as ptu
 
 
@@ -59,12 +60,18 @@ class MLPPolicy(nn.Module):
     def get_action(self, obs: np.ndarray) -> np.ndarray:
         """Takes a single observation (as a numpy array) and returns a single action (as a numpy array)."""
         # TODO: implement get_action
-        act_probs = self.forward(torch.tensor(obs).to(ptu.device))
-        
-        action_probs = F.softmax(act_probs)
-        #sample from act probs
-        action = torch.multinomial(action_probs, 1).numpy()
-        return action
+        obs_tensor = ptu.from_numpy(obs)
+        if self.discrete:
+            act_probs = self.logits_net(obs_tensor)
+            act_probs = F.softmax(act_probs)
+            action = torch.multinomial(act_probs, 1)
+        else:
+            mean = self.mean_net(obs_tensor)
+            std = torch.exp(self.logstd)
+            # action = mean + std * torch.randn(std.size())
+            norm_dist = torch.distributions.normal.Normal(mean, std)
+            action = norm_dist.sample()
+        return action.numpy()
     def forward(self, obs: torch.FloatTensor):
         """
         This function defines the forward pass of the network.  You can return anything you want, but you should be
@@ -73,13 +80,11 @@ class MLPPolicy(nn.Module):
         """
         if self.discrete:
             # TODO: define the forward pass for a policy with a discrete action space.
-            act_probs = self.logits_net(obs)
+            probs = self.logits_net(obs)
         else:
             # TODO: define the forward pass for a policy with a continuous action space.
-            mean = self.mean_net(obs)
-            std = self.logstd(obs)
-            act_probs = mean + std * torch.randn(std.size())
-        return act_probs
+            probs = self.mean_net(obs)
+        return probs
 
     def update(self, obs: np.ndarray, actions: np.ndarray, *args, **kwargs) -> dict:
         """Performs one iteration of gradient descent on the provided batch of data."""
@@ -97,21 +102,37 @@ class MLPPolicyPG(MLPPolicy):
     ) -> dict:
         """Implements the policy gradient actor update."""
         obs = ptu.from_numpy(obs)
+
+        #actions shape batch x ac_dim
         actions = ptu.from_numpy(actions)
+        #adv shape: batch 
         advantages = ptu.from_numpy(advantages)
+        
+        
 
         # TODO: implement the policy gradient actor update.
         #get act probs
         
+        self.optimizer.zero_grad()
+
         probs = self.forward(obs)
         
-        act_log_probs = F.cross_entropy(probs, actions.to(torch.long), reduction = "none")
-
-        #trying to maximize this value; cross entropy already computes negative value; so we shouldn't minimize
-        loss = (act_log_probs * advantages).mean()
-        self.optimizer.zero_grad()
+        
+        #well there is no guarantee that above is actually probabilities, rather just logits
+        
+        if self.discrete:
+            act_log_probs = -1.0*F.cross_entropy(probs, actions.to(torch.long), reduction = "none")
+        else:
+            # var = (torch.exp(self.logstd) ** 2)
+            #compute gauss likelihood; we removed the last constant; in theory this shouldn't really matter in gradient calculation 
+            norm_dist = torch.distributions.normal.Normal(probs, torch.exp(self.logstd))
+            # act_log_probs = -0.5 * (((actions - probs) ** 2)/(var) + 2 * self.logstd+ math.log(2 * math.pi)).sum(dim=-1)
+            act_log_probs = norm_dist.log_prob(actions).sum(dim=-1)
+                
+        loss = -(act_log_probs * advantages).mean()
         loss.backward()
         self.optimizer.step()
+        
 
         return {
             "Actor Loss": ptu.to_numpy(loss),
