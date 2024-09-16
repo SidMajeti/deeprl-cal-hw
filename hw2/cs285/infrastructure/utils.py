@@ -31,20 +31,13 @@ def sample_trajectory(
 
         # TODO use the most recent ob and the policy to decide what to do
         #hmm would this be any less efficient because we are using cpu/numpy?? instead of torch
-        ac: np.ndarray = policy.get_action(np.array(ob, dtype=np.float32))
+        ac: np.ndarray = policy.get_action(ob)
         
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
 
         if discrete:
             ac = ac[0]
-        
-        if isinstance(env.action_space, gym.spaces.Box):
-            low = env.action_space.low
-            high =  env.action_space.high
-            #
-            # ac = np.clip(ac, low, high)
-            
-                
+          
         # TODO: use that action to take a step in the environment
         next_ob, rew, done, _ = env.step(ac)
 
@@ -69,7 +62,7 @@ def sample_trajectory(
         "observation": np.array(obs, dtype=np.float32),
         "image_obs": np.array(image_obs, dtype=np.uint8),
         "reward": np.array(rewards, dtype=np.float32),
-        "action": np.array(acs, dtype=np.int64),
+        "action": np.array(acs, dtype=np.float32),
         "next_observation": np.array(next_obs, dtype=np.float32),
         "terminal": np.array(terminals, dtype=np.float32),
     }

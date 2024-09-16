@@ -68,7 +68,6 @@ class MLPPolicy(nn.Module):
         else:
             mean = self.mean_net(obs_tensor)
             std = torch.exp(self.logstd)
-            # action = mean + std * torch.randn(std.size())
             norm_dist = torch.distributions.normal.Normal(mean, std)
             action = norm_dist.sample()
         return action.numpy()
@@ -126,7 +125,6 @@ class MLPPolicyPG(MLPPolicy):
             # var = (torch.exp(self.logstd) ** 2)
             #compute gauss likelihood; we removed the last constant; in theory this shouldn't really matter in gradient calculation 
             norm_dist = torch.distributions.normal.Normal(probs, torch.exp(self.logstd))
-            # act_log_probs = -0.5 * (((actions - probs) ** 2)/(var) + 2 * self.logstd+ math.log(2 * math.pi)).sum(dim=-1)
             act_log_probs = norm_dist.log_prob(actions).sum(dim=-1)
                 
         loss = -(act_log_probs * advantages).mean()
