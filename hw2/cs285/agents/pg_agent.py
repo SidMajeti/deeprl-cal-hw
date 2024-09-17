@@ -62,7 +62,6 @@ class PGAgent(nn.Module):
         """
 
         batch_size = sum(o.shape[0] for o in obs)
-        print("len of obs: ", len(obs))
         # step 1: calculate Q values of each (s_t, a_t) point, using rewards (r_0, ..., r_t, ..., r_T)
         q_values: Sequence[np.ndarray] = self._calculate_q_vals(rewards)
 
@@ -144,7 +143,6 @@ class PGAgent(nn.Module):
                 
                 #values has shape batch_size x 1 by this time; this is just value estimate
                 
-                
                 for i in reversed(range(batch_size)):
                     # TODO: recursively compute advantage estimates starting from timestep T.
                     # HINT: use terminals to handle edge cases. terminals[i] is 1 if the state is the last in its
@@ -167,6 +165,7 @@ class PGAgent(nn.Module):
             mean = advantages.mean()
             std = advantages.std()
             advantages = (advantages - mean)/(std + 1e-8)
+        
 
         return advantages
 

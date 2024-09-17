@@ -106,8 +106,7 @@ class MLPPolicyPG(MLPPolicy):
         actions = ptu.from_numpy(actions)
         #adv shape: batch 
         advantages = ptu.from_numpy(advantages)
-        
-        
+                
 
         # TODO: implement the policy gradient actor update.
         #get act probs
@@ -126,7 +125,7 @@ class MLPPolicyPG(MLPPolicy):
             #compute gauss likelihood; we removed the last constant; in theory this shouldn't really matter in gradient calculation 
             norm_dist = torch.distributions.normal.Normal(probs, torch.exp(self.logstd))
             act_log_probs = norm_dist.log_prob(actions).sum(dim=-1)
-                
+           
         loss = -(act_log_probs * advantages).mean()
         loss.backward()
         self.optimizer.step()
